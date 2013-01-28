@@ -25,7 +25,7 @@
 # Usage
 ###############################################################################
 usage='Suggested R command line: \
-R --vanilla --slave --args bamcheck=1234_5#6.bam.bamcheck output=1234_5#6.bam.bamcheck k=25 baseline.method="runmed" < bamcheck_indel_peaks.R'
+R --vanilla --slave --args bamcheck=1234_5#6.bam.bamcheck outfile=1234_5#6.bam.bamcheck k=25 baseline.method="runmed" < bamcheck_indel_peaks.R'
 
 
 ###############################################################################
@@ -106,6 +106,9 @@ usage <- function(message, status=0) {
 ###############################################################################
 if(!exists("bamcheck")) {
   die("You must specify an input bamcheck file!", -1)
+}
+if(!exists("outfile")) {
+  die("You must specify an output bamcheck file!", -1)
 }
 
 ###############################################################################
