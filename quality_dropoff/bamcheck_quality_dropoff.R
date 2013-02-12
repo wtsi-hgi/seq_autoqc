@@ -156,8 +156,7 @@ colnames(embed.scores.summed) <- c("next.q", "q", "prev.q", "sum.q")
 
 embed.score.sum <- rle(embed.scores.summed[,4])
 
-contiguous.cycle.dropoff.count <- embed.score.sum$length[embed.score.sum$values == 3]
-
+contiguous.cycle.dropoff.count <- max(embed.score.sum$length[embed.score.sum$values == 3], 0)
 
 ###############################################################################
 # Output contiguous.cycle.dropoff.count as bamcheck-style Summary Number (SN) entry
