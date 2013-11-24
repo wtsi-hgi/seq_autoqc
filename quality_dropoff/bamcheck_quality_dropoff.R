@@ -25,9 +25,8 @@
 # Usage
 ###############################################################################
 usage='Suggested R command line: \
-R --vanilla --slave --args bamcheck="1234_5#6.bam.bamcheck" outdir="./" < bamcheck_mari_test.R'
-
-
+R --vanilla --slave --args bamcheck="1234_5#6.bam.bamcheck" \
+outdir="./" < bamcheck_quality_dropoff.R'
 
 ###############################################################################
 # Description
@@ -43,12 +42,16 @@ R --vanilla --slave --args bamcheck="1234_5#6.bam.bamcheck" outdir="./" < bamche
 # Required libraries
 ###############################################################################
 require(plyr)
+require(reshape2)
+require(Hmisc)
 
 ###############################################################################
 # Default Parameters
 ###############################################################################
 outdir = "./"
-iqr.threshold = 12
+high.iqr.threshold = 12
+runmed.k = 15
+ignore.edge.cycles = 3
 
 ###############################################################################
 # Process command-line arguments into variables, overriding defaults.
@@ -82,7 +85,89 @@ if(!exists("bamcheck")) {
 if(!exists("outfile")) {
   die("You must specify an output bamcheck file!", -1)
 }
-iqr.threshold = as.numeric(iqr.threshold)
+high.iqr.threshold = as.numeric(high.iqr.threshold)
+
+##########################################################################
+# Calculate quantiles, IQR, and mean for a read cycle
+##########################################################################
+readcycle.stats <- function(read.df, var) {
+  quantiles <- wtd.quantile(x=read.df[,var], weights=read.df$count, probs=c(0.25, 0.5, 0.75));
+  q1 <- quantiles[1]
+  median <- quantiles[2]
+  q3 <- quantiles[3]
+  iqr <- q3 - q1
+  mean <- wtd.mean(x=read.df[,var], weights=read.df$count)
+  retdf <- data.frame(q1, median, q3, iqr, mean)
+  names(retdf) <- paste(sep=".", var, c("q1","median","q3","iqr","mean"))
+  return(retdf)
+}
+
+##########################################################################
+# Calculate quality stats for each read cycle
+##########################################################################
+quality.per.read.cycle <- function(df, dir) {
+  qprc <- ddply(.data=subset(df, subset=(direction==dir)), .variables=c("read.cycle"), .fun=readcycle.stats, "quality")
+  qprc$quality.median.runmed <- as.vector(runmed(qprc$quality.median, runmed.k))
+  qprc$quality.mean.runmed <- as.vector(runmed(qprc$quality.mean, runmed.k))
+
+  ########################################################################
+  # Drop the first and last few read cycles (if ignore.edge.cycles > 0)
+  ########################################################################
+  qprc <- subset(qprc, subset=((read.cycle > ignore.edge.cycles) & (read.cycle < (max(qprc$read.cycle)-ignore.edge.cycles+1))))
+
+  return(qprc)
+}
+
+##########################################################################
+# Calculate the max number of contiguous true values
+##########################################################################
+max.contiguous <- function(bools) {
+  embed.bools.3 <- data.frame(embed(bools,3))
+  names(embed.bools.3) <- c("next", "current", "prev")
+
+  embed.bools.3.summed <- cbind(embed.bools.3, rowSums(embed.bools.3))
+
+  colnames(embed.bools.3.summed) <- c("next", "current", "prev", "sum")
+
+  embed.bools.3.summed.rle <- rle(embed.bools.3.summed$sum)
+
+  max.contiguous.read.cycles <- max(embed.bools.3.summed.rle$length[embed.bools.3.summed.rle$values == 3], 0) 
+  rle.index <- which(embed.bools.3.summed.rle$lengths == max.contiguous.read.cycles & embed.bools.3.summed.rle$values == 3)-1
+  start.read.cycle <- sum(embed.bools.3.summed.rle$lengths[1:(rle.index)])+1
+  end.read.cycle <- start.read.cycle + max.contiguous.read.cycles - 1
+		 
+  return( data.frame(start.read.cycle, end.read.cycle, max.contiguous.read.cycles) )
+}
+
+##########################################################################
+# Calculate the max number of contiguous declining values
+##########################################################################
+max.declining <- function(values) {
+  embed.values.2 <- data.frame(embed(values,2))
+  names(embed.values.2)<-c("next", "current")
+  ret.df <- max.contiguous(embed.values.2[,1] <= embed.values.2[,2])
+  ret.df$high.value <- values[ret.df$start.read.cycle]
+  ret.df$low.value <- values[ret.df$end.read.cycle]
+  return(ret.df)
+}
+
+##########################################################################
+# Contiguous stats
+##########################################################################
+contiguous.quality.stats <- function(quality.stats) {
+  return(data.frame(
+	   high.iqr = max.contiguous(quality.stats$quality.iqr >= high.iqr.threshold),
+           mean.runmed.decline = max.declining(quality.stats$quality.mean.runmed)
+	  ))
+}
+
+##########################################################################
+# Plot quality stats and save to files under outplotbase
+##########################################################################
+plot.quality.stats <- function(quality.stats.df, direction) {
+  qs.plot <- ggplot(data=melt(quality.stats.df, id.vars=c("read.cycle","quality.q1","quality.q3","quality.iqr"), measure.vars=c("quality.median","quality.mean","quality.mean.runmed")), mapping=aes(x=read.cycle)) + geom_path(mapping=aes(y=value, colour=variable)) + geom_ribbon(mapping=aes(ymin=quality.q1, ymax=quality.q3), alpha=0.25) + scale_colour_brewer(palette="Dark2")
+  ggsave(plot=qs.plot, filename=paste(sep=".", outplotbase, direction, "pdf"))
+}
 
 ###############################################################################
 # Protect filename from shell special characters in pipe command
@@ -90,76 +175,49 @@ iqr.threshold = as.numeric(iqr.threshold)
 ###############################################################################
 protect.shell.pattern='[^\\w\\-\\@\\.\\#\\/]'
 bamcheck.file <- gsub(pattern=protect.shell.pattern, replacement='', x=bamcheck, perl=T)
-
-output.file.base <- gsub(pattern='//', replacement='/', fixed=T, x=paste(outdir,basename(bamcheck.file),sep="/"))
-
-message(paste("bamcheck file:",bamcheck,"outdir:",outdir,"iqr.threshold:",iqr.threshold))
+message(paste("bamcheck file:", bamcheck, "high.iqr.threshold:", high.iqr.threshold, "outfile:", outfile))
 
 ###############################################################################
 # Read bamcheck data using pipe egrep to extract First Fragment Quality
 # and Last Fragment Quality (FFQ and LFQ) data only
 ###############################################################################
 data <- read.table(pipe(paste("egrep '^(FFQ|LFQ)'", bamcheck.file)), as.is=T, sep="\t")
-
-calc.row.interquartile.range <- function(qualdiff) {
-                   rowdata <- rep.int(x=seq(from=0,to=length(qualdiff[1,])-1), times=qualdiff[1,]);
-                   lowquartile <- quantile(rowdata, probs=c(0.25));
-                   highquartile <- quantile(rowdata, probs=c(0.75));
-                   quartilediff <- highquartile-lowquartile
-                   return(data.frame(quartilediff))
-                 }
-
-FFQ.quartilerange <- adply(.data=data[data$V1=="FFQ", -1],
-                 .margins=c(1),
-                 .fun=calc.row.interquartile.range)
-names(FFQ.quartilerange)[1] <- "read.cycle"
-FFQ.quartilerange$fwdrev = "fwd"
-
-LFQ.quartilerange <- adply(.data=data[data$V1=="LFQ", -1],
-                 .margins=c(1),
-                 .fun=calc.row.interquartile.range)
-names(LFQ.quartilerange)[1] <- "read.cycle"
-LFQ.quartilerange$fwdrev = "rev"
-
-rev.quartilerange <- rbind(FFQ.quartilerange, LFQ.quartilerange)
-
-
-
-##################################################
-# The calculated quartile range is in column 2 
-##################################################
-rev.quartilerange <- rev.quartilerange[,2]
-
-embed.qual.range <- data.frame(embed(rev.quartilerange,3))
-names(embed.qual.range)<-c("next.q", "q", "prev.q")
-
-embed.qual.range.scored <- as.matrix(embed.qual.range.scored <- ifelse(embed.qual.range>=iqr.threshold, 1, 0))
-
-##########################################################################
-# Adding a column summing the number of cycles (0-3/3 contiguous
-# cycles) with a quartile difference of more than iqr.threshold. 
-#
-# If you want to find out whether there's been a problem that caused massive
-# differences in quality range (likely to be a hardwae failure) maybe
-# count the length of the consecutive 3-point scoring cycles and see
-# if it's longer than a threshold value. We'll call this the 
-# contiguous cycle dropoff count. 
-#
-# Something like >=10 contiguous.cycle.dropoff.count could indicate failure 
-# and >=5 contigious.cycle.dropoff.count could be a warning.
-# 
-##########################################################################
-
-embed.scores.summed <- cbind(embed.qual.range.scored, rowSums(embed.qual.range.scored))
-
-colnames(embed.scores.summed) <- c("next.q", "q", "prev.q", "sum.q")
-
-embed.score.sum <- rle(embed.scores.summed[,4])
-
-contiguous.cycle.dropoff.count <- max(embed.score.sum$length[embed.score.sum$values == 3], 0)
+names(data)[1] <- "direction"
+names(data)[2] <- "read.cycle"
+names(data)[3:length(data[1,])] <- (seq_along(names(data)[3:length(data[1,])])-1)
+data$direction <- factor(x=data$direction, levels=c("FFQ","LFQ"), labels=c("forward","reverse"))
 
 ###############################################################################
-# Output contiguous.cycle.dropoff.count as bamcheck-style Summary Number (SN) entry
+# "Melt" the data into long (instead of wide) format (filtering out count==0)
 ###############################################################################
-outdata <- data.frame(section="SN", variable=c("contiguous cycle dropoff count:"), value=c(contiguous.cycle.dropoff.count))
+data.melt <- subset(melt(data, id.vars=c("direction", "read.cycle"), variable.name="quality", value.name="count"), subset=(count>0))
+data.melt$quality <- as.numeric(as.character(data.melt$quality))
+
+###############################################################################
+# Calculate basic stats (median, mean, quartiles, iqr) for each read cycle
+###############################################################################
+fwd.quality.stats <- quality.per.read.cycle(data.melt, "forward")
+rev.quality.stats <- quality.per.read.cycle(data.melt, "reverse")
+
+###############################################################################
+# Calculate contiguous stats
+###############################################################################
+fwd.contiguous.quality.stats <- contiguous.quality.stats(fwd.quality.stats)
+rev.contiguous.quality.stats <- contiguous.quality.stats(rev.quality.stats)
+contiguous.quality.stats <- data.frame(quality.dropoff.fwd=fwd.contiguous.quality.stats, quality.dropoff.rev=rev.contiguous.quality.stats, quality.dropoff.high.iqr.threshold=high.iqr.threshold, quality.dropoff.runmed.k=runmed.k, quality.dropoff.ignore.edge.cycles=ignore.edge.cycles)
+
+###############################################################################
+# Output contiguous.high.iqr as bamcheck-style Summary Number (SN) entry
+###############################################################################
+outdata <- data.frame(section = "SN", melt(contiguous.quality.stats))
 write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+
+###############################################################################
+# Optionally output plots
+###############################################################################
+if(exists("outplotbase")) {
+  require(ggplot2)
+  plot.quality.stats(fwd.quality.stats, "forward")
+  plot.quality.stats(rev.quality.stats, "reverse")
+}
+
