@@ -133,8 +133,13 @@ max.contiguous <- function(bools) {
 
   max.contiguous.read.cycles <- max(embed.bools.3.summed.rle$length[embed.bools.3.summed.rle$values == 3], 0) 
   rle.index <- which(embed.bools.3.summed.rle$lengths == max.contiguous.read.cycles & embed.bools.3.summed.rle$values == 3)-1
-  start.read.cycle <- sum(embed.bools.3.summed.rle$lengths[1:(rle.index)])+1
-  end.read.cycle <- start.read.cycle + max.contiguous.read.cycles - 1
+  if(length(rle.index) > 0) {
+    start.read.cycle <- sum(embed.bools.3.summed.rle$lengths[1:(rle.index)])+1
+    end.read.cycle <- start.read.cycle + max.contiguous.read.cycles - 1
+  } else {
+    start.read.cycle <- 0
+    end.read.cycle <- 0
+  }
 		 
   return( data.frame(start.read.cycle, end.read.cycle, max.contiguous.read.cycles) )
 }
