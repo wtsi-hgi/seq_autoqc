@@ -19,7 +19,7 @@ interleave_comments_data_by_section <- function(bamcheck, sections) {
 	                    .margins = c(1), 
 			    .fun = function(row) {
 			      return(
-			        paste0(row, collapse="\t")
+			        paste0(c(section, row), collapse="\t")
 			      )}, .expand = FALSE)
              } else {
 	       data_lines <- c()

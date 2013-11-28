@@ -159,9 +159,9 @@ extract_data_by_section <- function(bamcheck_data_lines) {
 
   # create a list comprised of data frames for each section
   data <- llply(.data = data_sections, .fun = function(section) {
-    return(colsplit(string = bamcheck_data_lines[data_section_labels==section], 
+    return(subset(colsplit(string = bamcheck_data_lines[data_section_labels==section], 
              pattern = "\t", 
-             names = c("section", bamcheck_section_columns[[section]])))
+             names = c("section", bamcheck_section_columns[[section]])), select=c(-section)))
   })
 
   # check for and workaround bug in older samtools/bamcheck (read.cycle should start at 1, not 0)
