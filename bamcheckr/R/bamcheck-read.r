@@ -171,3 +171,4 @@ extract_data_by_section <- function(bamcheck_data_lines) {
 
   return(data)
 }
+

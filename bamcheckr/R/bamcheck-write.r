@@ -30,17 +30,3 @@ interleave_comments_data_by_section <- function(bamcheck, sections) {
 }
 
 
-###############################################################################
-# remove all the rightmost columns that consist of entirely missing data
-###############################################################################
-remove_rightmost_missing_columns <- function(df) {
-  for(i in length(df[1,]):1) {
-    if (!all(is.na(df[,i]))) { 
-      remove_cols_from <- i + 1
-      break;
-    }
-  }
-  return(df[,1:(remove_cols_from-1)])
-}
-
-
