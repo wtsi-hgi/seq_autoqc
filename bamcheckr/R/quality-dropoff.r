@@ -33,6 +33,65 @@
 
 
 ##########################################################################
+# Calculate new Summary Number entries based on quality dropoff
+##########################################################################
+quality_dropoff <- function(bamcheck, runmed_k = 25, ignore_edge_cycles = 3, 
+		            high_iqr_threshold = 12, outplotbase = "") {
+
+  data <- remove_rightmost_missing_columns(
+       	    rbind(data.frame(direction="forward", bamcheck$data$FFQ), 
+                  data.frame(direction="reverse", bamcheck$data$LFQ)))
+
+  ###############################################################################
+  # "Melt" the data into long (instead of wide) format (filtering out count==0)
+  ###############################################################################
+  data_melt <- subset(melt(data, id.vars=c("direction", "read.cycle"), 
+  	                   variable.name="quality", value.name="count"), 
+		      subset=(count>0))
+  levels(data_melt$quality) <- str_replace(string = levels(data_melt$quality), 
+  			       pattern = '^Q', replacement = '')
+  data_melt$quality <- as.numeric(as.character(data_melt$quality))
+
+  ###############################################################################
+  # Calculate basic stats (median, mean, quartiles, iqr) for each read cycle
+  ###############################################################################
+  fwd_quality_stats <- calculate_quality_per_read_cycle(data_melt, "forward", 
+  		       				        runmed_k, ignore_edge_cycles)
+  rev_quality_stats <- calculate_quality_per_read_cycle(data_melt, "reverse", 
+  		       					runmed_k, ignore_edge_cycles)
+
+  ###############################################################################
+  # Calculate contiguous stats
+  ###############################################################################
+  fwd_contiguous_quality_stats <- calculate_contiguous_quality_stats(
+  			            fwd_quality_stats, high_iqr_threshold)
+  rev_contiguous_quality_stats <- calculate_contiguous_quality_stats(
+  			            rev_quality_stats, high_iqr_threshold)
+  contiguous_quality_stats <- data.frame(
+  			        quality.dropoff.fwd = fwd_contiguous_quality_stats, 
+				quality.dropoff.rev = rev_contiguous_quality_stats, 
+				quality.dropoff.high.iqr.threshold = high_iqr_threshold, 
+				quality.dropoff.runmed.k = runmed_k, 
+				quality.dropoff.ignore.edge.cycles = ignore_edge_cycles)
+
+  ###############################################################################
+  # Optionally output plots
+  ###############################################################################
+  if (outplotbase != "") {
+    plot_quality_stats(fwd_quality_stats, "forward")
+      plot_quality_stats(rev_quality_stats, "reverse")
+  }
+
+  ###############################################################################
+  # Output contiguous.high.iqr as bamcheck-style Summary Number (SN) entry
+  ###############################################################################
+  outdata <- data.frame(section = "SN", melt(contiguous_quality_stats))
+#  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+  return(outdata)
+}
+
+
+##########################################################################
 # Calculate quantiles, IQR, and mean for a read cycle
 ##########################################################################
 calculate_readcycle_stats <- function(read.df, var) {
@@ -50,15 +109,16 @@ calculate_readcycle_stats <- function(read.df, var) {
 ##########################################################################
 # Calculate quality stats for each read cycle
 ##########################################################################
-calculate_quality_per_read_cycle <- function(df, dir) {
+calculate_quality_per_read_cycle <- function(df, dir, runmed_k, 
+				             ignore_edge_cycles) {
   qprc <- ddply(.data=subset(df, subset=(direction==dir)), .variables=c("read.cycle"), .fun=calculate_readcycle_stats, "quality")
-  qprc$quality.median.runmed <- as.vector(runmed(qprc$quality.median, runmed.k))
-  qprc$quality.mean.runmed <- as.vector(runmed(qprc$quality.mean, runmed.k))
+  qprc$quality.median.runmed <- as.vector(runmed(x = qprc$quality.median, k = runmed_k))
+  qprc$quality.mean.runmed <- as.vector(runmed(x = qprc$quality.mean, k = runmed_k))
 
   ########################################################################
-  # Drop the first and last few read cycles (if ignore.edge.cycles > 0)
+  # Drop the first and last few read cycles (if ignore_edge_cycles > 0)
   ########################################################################
-  qprc <- subset(qprc, subset=((read.cycle > ignore.edge.cycles) & (read.cycle < (max(qprc$read.cycle)-ignore.edge.cycles+1))))
+  qprc <- subset(qprc, subset=((read.cycle > ignore_edge_cycles) & (read.cycle < (max(qprc$read.cycle)-ignore_edge_cycles+1))))
 
   return(qprc)
 }
@@ -78,7 +138,7 @@ max_contiguous <- function(bools) {
 
   max_contiguous_read_cycles <- max(embed_bools_3_summed_rle$length[embed_bools_3_summed_rle$values == 3], 0) 
   rle_index <- which(embed_bools_3_summed_rle$lengths == max_contiguous_read_cycles & embed_bools_3_summed_rle$values == 3)-1
-  if(length(rle_index) > 0) {
+  if (length(rle_index) > 0) {
     start_read_cycle <- sum(embed_bools_3_summed_rle$lengths[1:(rle_index)])+1
     end_read_cycle <- start_read_cycle + max_contiguous_read_cycles - 1
   } else {
@@ -86,7 +146,9 @@ max_contiguous <- function(bools) {
     end_read_cycle <- 0
   }
 		 
-  return( data.frame(start_read_cycle, end_read_cycle, max_contiguous_read_cycles) )
+  return( data.frame(start.read.cycle = start_read_cycle, 
+  	  	     end.read.cycle = end_read_cycle, 
+		     max.contiguous.read.cycles = max_contiguous_read_cycles) )
 }
 
 ##########################################################################
@@ -104,7 +166,7 @@ max_declining <- function(values) {
 ##########################################################################
 # Contiguous stats
 ##########################################################################
-contiguous_quality_stats <- function(quality_stats) {
+calculate_contiguous_quality_stats <- function(quality_stats, high_iqr_threshold) {
   return(data.frame(
 	   high.iqr = max_contiguous(quality_stats$quality.iqr >= high_iqr_threshold),
            mean.runmed.decline = max_declining(quality_stats$quality.mean.runmed)
@@ -117,41 +179,5 @@ contiguous_quality_stats <- function(quality_stats) {
 plot_quality_stats <- function(quality_stats_df, direction) {
   qs_plot <- ggplot(data=melt(quality_stats_df, id.vars=c("read.cycle","quality.q1","quality.q3","quality.iqr"), measure.vars=c("quality.median","quality.mean","quality.mean.runmed")), mapping=aes(x=read.cycle)) + geom_path(mapping=aes(y=value, colour=variable)) + geom_ribbon(mapping=aes(ymin=quality.q1, ymax=quality.q3), alpha=0.25) + scale_colour_brewer(palette="Dark2")
   ggsave(plot=qs.plot, filename=paste(sep=".", outplotbase, direction, "pdf"))
-}
-
-quality_dropoff <- function(data) {
-  ###############################################################################
-  # "Melt" the data into long (instead of wide) format (filtering out count==0)
-  ###############################################################################
-  data_melt <- subset(melt(data, id.vars=c("direction", "read.cycle"), variable.name="quality", value.name="count"), subset=(count>0))
-  data_melt$quality <- as.numeric(as.character(data_melt$quality))
-
-  ###############################################################################
-  # Calculate basic stats (median, mean, quartiles, iqr) for each read cycle
-  ###############################################################################
-  fwd_quality_stats <- calculate_quality_per_read_cycle(data_melt, "forward")
-  rev_quality_stats <- calculate_quality_per_read_cycle(data_melt, "reverse")
-
-  ###############################################################################
-  # Calculate contiguous stats
-  ###############################################################################
-  fwd_contiguous_quality_stats <- contiguous_quality_stats(fwd_quality_stats)
-  rev_contiguous_quality_stats <- contiguous_quality_stats(rev_quality_stats)
-  contiguous_quality_stats <- data.frame(quality.dropoff.fwd=fwd_contiguous_quality_stats, quality.dropoff.rev=rev_contiguous_quality_stats, quality.dropoff.high.iqr.threshold=high_iqr_threshold, quality.dropoff.runmed.k=runmed_k, quality.dropoff.ignore.edge.cycles=ignore_edge_cycles)
-
-  ###############################################################################
-  # Optionally output plots
-  ###############################################################################
-  if(exists("outplotbase")) {
-    plot_quality_stats(fwd_quality_stats, "forward")
-      plot_quality_stats(rev_quality_stats, "reverse")
-  }
-
-  ###############################################################################
-  # Output contiguous.high.iqr as bamcheck-style Summary Number (SN) entry
-  ###############################################################################
-  outdata <- data.frame(section = "SN", melt(contiguous_quality_stats))
-#  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
-  return(outdata)
 }
 
