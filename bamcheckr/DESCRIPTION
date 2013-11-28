@@ -2,7 +2,11 @@ Package: bamcheckr
 Title: Tools for manipulating bamcheck files
 Description: 
 Version: 0.1
-Authors@R: # getOptions('devtools.desc.author')
+Authors@R: c(
+    person("Joshua", "C.", "Randall", 
+           email = "jcrandall@alum.mit.edu", 
+	   role = c("aut", "cre")))
 Depends: R (>= 3.0.0)
-License: # getOptions('devtools.desc.license')
+Imports: Hmisc, plyr, reshape2, ggplot2, caTools
+License: "GPL-3"
 LazyData: true

@@ -1,3 +1,7 @@
+.onAttach <- function(...) {
+  invisible()
+}
+
 #' bamcheckr: tools for working with bamcheck files
 #'
 #' bamcheckr provides tools that can read and write bamcheck files (as 
@@ -8,3 +12,7 @@
 #' @docType package
 #' @name bamcheckr
 NULL
+
+.onLoad <- function(libname, pkgname) {
+  invisible()
+}

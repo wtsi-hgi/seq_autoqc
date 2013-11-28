@@ -22,13 +22,6 @@
 ###############################################################################
 
 ###############################################################################
-# Usage
-###############################################################################
-usage='Suggested R command line: \
-R --vanilla --slave --args bamcheck=1234_5#6.bam.bamcheck outfile=1234_5#6.bam.bamcheck k=25 baseline.method="runmed" < bamcheck_indel_peaks.R'
-
-
-###############################################################################
 # Description
 ###############################################################################
 #
@@ -74,83 +67,32 @@ R --vanilla --slave --args bamcheck=1234_5#6.bam.bamcheck outfile=1234_5#6.bam.b
 
 
 ###############################################################################
-# Default Parameters
+# indel_peaks subtracts a baseline and counts indels above and below baseline
 ###############################################################################
-k=25
-baseline.method="runmed"
-
-###############################################################################
-# Process command-line arguments into variables, overriding defaults.
-###############################################################################
-for (e in commandArgs(trailingOnly=TRUE)) {
-  ta = strsplit(e,"=",fixed=TRUE)
-  if(!is.null(ta[[1]][2])) {
-    assign(ta[[1]][1],ta[[1]][2])
-  } else {
-    assign(ta[[1]][1],TRUE)
-  }
-}
-
-###############################################################################
-# Usage function prints a message and dies with specified exit status
-###############################################################################
-usage <- function(message, status=0) {
-  cat(usage)
-  cat(message,"\n")
-  cat("Exiting with status: ",status,"\n")
-  quit(save="no", status=status, runLast=FALSE)
-}
-
-###############################################################################
-# Check that necessary arguments have been provided
-###############################################################################
-if(!exists("bamcheck")) {
-  die("You must specify an input bamcheck file!", -1)
-}
-if(!exists("outfile")) {
-  die("You must specify an output bamcheck file!", -1)
-}
-
-###############################################################################
-# Protect filename from shell special characters in pipe command
-# (does not support spaces in filenames for now)
-###############################################################################
-protect.shell.pattern='[^\\w\\-\\@\\.\\#/]'
-bamcheck.file <- gsub(pattern=protect.shell.pattern, replacement='', x=bamcheck, perl=T)
-
-###############################################################################
-# Read bamcheck data using pipe grep to extract Indel Count (IC) data only
-###############################################################################
-ic.data <- read.table(pipe(paste("grep '^IC'", bamcheck.file)), colClasses=c("NULL","integer","integer","integer","integer","integer"), col.names=c("IC","read.cycle","fwd.insertion.count","rev.insertion.count","fwd.deletion.count","rev.deletion.count"))
-
-
-###############################################################################
-# indel.peaks subtracts a baseline and counts indels above and below baseline
-###############################################################################
-indel.peaks <- function(read.cycle, count, baseline.method="runmed", k=25) {
-  if(baseline.method=="runmed") {
-    # baseline is a running median across a sliding window of k reads
-    baseline <- runmed(count, k)
+subtract_indel_peaks <- function(read_cycle, count, baseline_method="runmed", runmed_k=25) {
+  if(baseline_method=="runmed") {
+    # baseline is a running median across a sliding window of runmed_k reads
+    baseline <- runmed(count, runmed_k)
   } 
-  else if(baseline.method=="runmed_quadratic") {
-    # quadratic fitted to running median across a sliding window of k reads
-    count_runmed <- runmed(count, k)
-    baseline <- lm(count_runmed~poly(read.cycle,degree=2))$fitted.values
+  else if(baseline_method=="runmed_quadratic") {
+    # quadratic fitted to running median across a sliding window of runmed_k reads
+    count_runmed <- runmed(count, runmed_k)
+    baseline <- lm(count_runmed~poly(read_cycle,degree=2))$fitted.values
   } 
-  else if(baseline.method=="quadratic") {
+  else if(baseline_method=="quadratic") {
     # quadratic fit to in/del counts (not recommended as it will overestimate baseline)
-    warn("quadratic baseline.method is not recommended as it will likely overestimate baseline in the presence of peaks, resulting in an undercount of indels above baseline")
-    baseline <- lm(count~poly(read.cycle,degree=2))$fitted.values
+    warn("quadratic baseline_method is not recommended as it will likely overestimate baseline in the presence of peaks, resulting in an undercount of indels above baseline")
+    baseline <- lm(count~poly(read_cycle,degree=2))$fitted.values
   } 
-  else if(baseline.method=="runmin_quadratic") {
+  else if(baseline_method=="runmin_quadratic") {
     # quadratic fit to running minimum of in/del counts (not recommended as it will underestimate baseline)
-    warn("runmin_quadratic baseline.method is not recommended as it will underestimate baseline, resulting in an overcount of indels above baseline and an undercount of indels below baseline")
-    require("caTools")
-    count_runmin <- runmin(count, k)
-    baseline <- lm(count_runmin~poly(read.cycle,degree=2))$fitted.values
+    warn("runmin_quadratic baseline_method is not recommended as it will underestimate baseline, resulting in an overcount of indels above baseline and an undercount of indels below baseline")
+    # requires caTools
+    count_runmin <- runmin(count, runmed_k)
+    baseline <- lm(count_runmin~poly(read_cycle,degree=2))$fitted.values
   } 
   else {
-    stop(paste(baseline.method,"is not a valid baseline.method"))
+    stop(paste(baseline_method,"is not a valid baseline_method"))
   } 
   count_minus_baseline <- count - baseline
   count_above_baseline <- sum(count_minus_baseline[count_minus_baseline>0])
@@ -158,27 +100,32 @@ indel.peaks <- function(read.cycle, count, baseline.method="runmed", k=25) {
   count_total <- sum(count)
   percent_above_baseline <- count_above_baseline / count_total
   percent_below_baseline <- count_below_baseline / count_total
-  return(list(above.count=count_above_baseline, below.count=count_below_baseline, total.count=count_total, percent.above=percent_above_baseline, percent.below=percent_below_baseline, read.cycle=read.cycle, count=count, baseline=baseline, count.minus.baseline=count_minus_baseline))
+  return(list(above.count=count_above_baseline, below.count=count_below_baseline, total.count=count_total, percent.above=percent_above_baseline, percent.below=percent_below_baseline, read.cycle=read_cycle, count=count, baseline=baseline, count.minus.baseline=count_minus_baseline))
 }
 
-###############################################################################
-# Plot indel.peaks diagnostics
-###############################################################################
-# require(ggplot2)
-# ggplot(data=data.frame(indel.peaks(peaky$readcycle, peaky$delcount, baseline.method="runmed")), mapping=aes(x=read.cycle)) + geom_line(mapping=aes(y=count), colour="black") + geom_line(mapping=aes(y=baseline), colour="red") + geom_line(mapping=aes(y=count.minus.baseline), colour="blue") 
 
 
-###############################################################################
-# Calculate insertion and deletion counts and percentages 
-###############################################################################
-fwd.insertion.peaks <- indel.peaks(read.cycle=ic.data$read.cycle, count=ic.data$fwd.insertion.count, baseline.method=baseline.method, k=k)
-rev.insertion.peaks <- indel.peaks(read.cycle=ic.data$read.cycle, count=ic.data$rev.insertion.count, baseline.method=baseline.method, k=k)
-fwd.deletion.peaks <- indel.peaks(read.cycle=ic.data$read.cycle, count=ic.data$fwd.deletion.count, baseline.method=baseline.method, k=k)
-rev.deletion.peaks <- indel.peaks(read.cycle=ic.data$read.cycle, count=ic.data$rev.deletion.count, baseline.method=baseline.method, k=k)
+indel_peaks <- function(ic_data) {
+
+  ###############################################################################
+  # Plot indel peaks diagnostics
+  ###############################################################################
+  # ggplot(data=data.frame(subtract_indel_peaks(peaky$readcycle, peaky$delcount, baseline_method="runmed")), mapping=aes(x=read_cycle)) + geom_line(mapping=aes(y=count), colour="black") + geom_line(mapping=aes(y=baseline), colour="red") + geom_line(mapping=aes(y=count.minus.baseline), colour="blue") 
 
 
-###############################################################################
-# Output counts and percentages as bamcheck-style Summary Number (SN) entries
-###############################################################################
-outdata <- data.frame(section="SN", variable=c("fwd percent insertions above baseline:", "fwd percent insertions below baseline:", "fwd percent deletions above baseline:", "fwd percent deletions below baseline:", "rev percent insertions above baseline:", "rev percent insertions below baseline:", "rev percent deletions above baseline:", "rev percent deletions below baseline:"), value=c(100.0*fwd.insertion.peaks$percent.above, 100.0*fwd.insertion.peaks$percent.below, 100.0*fwd.deletion.peaks$percent.above, 100.0*fwd.deletion.peaks$percent.below,100.0*rev.insertion.peaks$percent.above, 100.0*rev.insertion.peaks$percent.below, 100.0*rev.deletion.peaks$percent.above, 100.0*rev.deletion.peaks$percent.below))
-write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+  ###############################################################################
+  # Calculate insertion and deletion counts and percentages 
+  ###############################################################################
+  fwd_insertion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$fwd.insertion.count, baseline_method=baseline_method, runmed_k=runmed_k)
+  rev_insertion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$rev.insertion.count, baseline_method=baseline_method, runmed_k=runmed_k)
+  fwd_deletion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$fwd.deletion.count, baseline_method=baseline_method, runmed_k=runmed_k)
+  rev_deletion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$rev.deletion.count, baseline_method=baseline_method, runmed_k=runmed_k)
+
+
+  ###############################################################################
+  # Output counts and percentages as bamcheck-style Summary Number (SN) entries
+  ###############################################################################
+  outdata <- data.frame(section="SN", variable=c("fwd percent insertions above baseline:", "fwd percent insertions below baseline:", "fwd percent deletions above baseline:", "fwd percent deletions below baseline:", "rev percent insertions above baseline:", "rev percent insertions below baseline:", "rev percent deletions above baseline:", "rev percent deletions below baseline:"), value=c(100.0*fwd_insertion_peaks$percent.above, 100.0*fwd_insertion_peaks$percent.below, 100.0*fwd_deletion_peaks$percent.above, 100.0*fwd_deletion_peaks$percent.below,100.0*rev_insertion_peaks$percent.above, 100.0*rev_insertion_peaks$percent.below, 100.0*rev_deletion_peaks$percent.above, 100.0*rev_deletion_peaks$percent.below))
+  #  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+  return(outdata)
+}

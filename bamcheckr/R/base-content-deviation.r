@@ -1,5 +1,5 @@
 ###############################################################################
-# bamcheck_base_content_peaks.R
+# base-content-deviation.r 
 ###############################################################################
 # 
 # Copyright (c) 2012, 2013 Genome Research Ltd.
@@ -21,12 +21,6 @@
 # 
 ###############################################################################
 
-###############################################################################
-# Usage
-###############################################################################
-usage='Suggested R command line: \
-R --vanilla --slave --args bamcheck=1234_5#6.bam.bamcheck outfile=1234_5#6.bam.bamcheck runmed.k=25 baseline.method="runmed" < bamcheck_indel_peaks.R'
-
 
 ###############################################################################
 # Description
@@ -40,15 +34,15 @@ R --vanilla --slave --args bamcheck=1234_5#6.bam.bamcheck outfile=1234_5#6.bam.b
 # that can be used as thresholds for downstream QC. 
 #
 # Several methods are available for fitting the baseline. The default is 
-# baseline.method="median" which uses a horizontal line at Y=median as the 
+# baseline_method="median" which uses a horizontal line at Y=median as the 
 # baseline. This assumes that the base content at each base will not 
 # systematically change across all read cycles. You can also use 
-# baseline.method="mean" to fit a horizontal line at Y=mean if you prefer.
+# baseline_method="mean" to fit a horizontal line at Y=mean if you prefer.
 #
 # An alternative if the content shape has systematic bias (and that is not 
-# a problem in and of itself) whould be to use baseline.method="runmed" which 
+# a problem in and of itself) whould be to use baseline_method="runmed" which 
 # uses a running median. This is calculated over a sliding window of size 
-# runmed.k=25 (by default, but this can be specified as a command-line 
+# runmed_k=25 (by default, but this can be specified as a command-line 
 # parameter). This baseline estimator does not make any assumptions about 
 # the baseline shape.
 #
@@ -60,97 +54,36 @@ R --vanilla --slave --args bamcheck=1234_5#6.bam.bamcheck outfile=1234_5#6.bam.b
 # [1] https://github.com/VertebrateResequencing/vr-codebase/blob/master/scripts/bamcheck.c
 ###############################################################################
 
-###############################################################################
-# Required libraries
-###############################################################################
-require(plyr)
-require(reshape2)
 
 ###############################################################################
-# Default Parameters
+# calc_baselines calculates baselines for given values
 ###############################################################################
-runmed.k=25
-baseline.method="mean"
-
-###############################################################################
-# Process command-line arguments into variables, overriding defaults.
-###############################################################################
-for (e in commandArgs(trailingOnly=TRUE)) {
-  ta = strsplit(e,"=",fixed=TRUE)
-  if(!is.null(ta[[1]][2])) {
-    assign(ta[[1]][1],ta[[1]][2])
-  } else {
-    assign(ta[[1]][1],TRUE)
-  }
-}
-
-###############################################################################
-# Usage function prints a message and dies with specified exit status
-###############################################################################
-usage <- function(message, status=0) {
-  cat(usage)
-  cat(message,"\n")
-  cat("Exiting with status: ",status,"\n")
-  quit(save="no", status=status, runLast=FALSE)
-}
-
-###############################################################################
-# Check that necessary arguments have been provided
-###############################################################################
-if(!exists("bamcheck")) {
-  die("You must specify an input bamcheck file!", -1)
-}
-if(!exists("outfile")) {
-  die("You must specify an output bamcheck file!", -1)
-}
-
-###############################################################################
-# Protect filename from shell special characters in pipe command
-# (does not support spaces in filenames for now)
-###############################################################################
-protect.shell.pattern='[^\\w\\-\\@\\.\\#/]'
-bamcheck.file <- gsub(pattern=protect.shell.pattern, replacement='', x=bamcheck, perl=T)
-
-###############################################################################
-# Read bamcheck data using pipe grep to extract ACGT content (GCC) data only
-###############################################################################
-gcc.data <- read.table(pipe(paste("grep '^GCC'", bamcheck.file)), colClasses=c("NULL","integer","numeric","numeric","numeric","numeric"), col.names=c("GCC","read.cycle","base.content.a","base.content.c","base.content.g","base.content.t"))
-
-# older versions of samtools had a bug in which GCC read cycle started with 0 instead of 1
-# if that is the case here, fix it so that it starts with 1
-if(gcc.data$read.cycle[1]==0) {
-  gcc.data$read.cycle <- gcc.data$read.cycle + 1
-}
-
-###############################################################################
-# calc.baselines calculates baselines for given values
-###############################################################################
-calc.baselines <- function(df, runmed.k) {
+calc_baselines <- function(df, runmed_k) {
   # "fit" a baseline of y=mean
   mean.baseline <- rep.int(x=mean(df$value), times=length(df$value))
 
   # "fit" a baseline of y=median
   median.baseline <- rep.int(x=median(df$value), times=length(df$value))
 
-  # fit a baseline as a running median across a sliding window of runmed.k reads
-  runmed.baseline <- runmed(df$value, runmed.k)
+  # fit a baseline as a running median across a sliding window of runmed_k reads
+  runmed.baseline <- runmed(df$value, runmed_k)
 
   return(data.frame(df, mean.baseline=mean.baseline, median.baseline=median.baseline, runmed.baseline=runmed.baseline))
 }
 
 ###############################################################################
-# bc.baseline.delta subtracts a baseline and provides values above and below 
+# subtract_baseline subtracts a baseline and provides values above and below 
 ###############################################################################
-bc.baseline.delta <- function(df, baseline.method="mean", runmed.k=25) {
-  df <- calc.baselines(df, runmed.k)
-  if (baseline.method=="mean") {
+subtract_baseline <- function(df, baseline_method="mean", runmed_k=25) {
+  df <- calc_baselines(df, runmed_k)
+  if (baseline_method=="mean") {
     df$baseline <- df$mean.baseline
-  } else if(baseline.method=="median") {
+  } else if (baseline_method=="median") {
     df$baseline <- df$median.baseline
-  } else if(baseline.method=="runmed") {
+  } else if (baseline_method=="runmed") {
     df$baseline <- df$runmed.baseline
   } else {
-    stop(paste(baseline.method,"is not a valid baseline.method"))
+    stop(paste(baseline_method,"is not a valid baseline_method."))
   }
   df <- within(df, {
 	  values.above.baseline = ifelse((value - baseline) > 0, value-baseline, 0)
@@ -160,56 +93,61 @@ bc.baseline.delta <- function(df, baseline.method="mean", runmed.k=25) {
 }
 
 ###############################################################################
-# bc.peaks calculates sums and percentages above and below baseline
+# calculate_deviation calculates sums and percentages above and below baseline
 ###############################################################################
-bc.peaks <- function(df) {
-  ret.df <- data.frame(
+calculate_deviation <- function(df) {
+  ret_df <- data.frame(
     mean.above.baseline = mean(df$values.above.baseline),
     mean.below.baseline = mean(df$values.below.baseline),
     max.above.baseline = max(df$values.above.baseline),
     max.below.baseline = max(df$values.below.baseline)
   )
-  ret.df <- within(ret.df, {
+  ret_df <- within(ret_df, {
     total.mean.baseline.deviation = mean.above.baseline + mean.below.baseline
     max.baseline.deviation = max(max.above.baseline, max.below.baseline)
   })
-  return(ret.df)
+  return(ret_df)
 }
 
 ###############################################################################
-# Plot bc.peaks diagnostics
+# Plot baseline diagnostics
 ###############################################################################
-plot.bc.baseline <- function(gcc.data.baseline) {
-  require(ggplot2)
-  bc.plot <- ggplot(data=melt(gcc.data.baseline, id.vars=c("read.cycle","base","baseline","values.below.baseline","values.above.baseline")), mapping=aes(x=read.cycle)) + facet_grid(facets=.~base, scales="fixed") + geom_path(mapping=aes(y=value, colour=variable)) + scale_y_continuous(limits=c(0,100)) + ylab("Base Content %") + xlab("Read Cycle") + ggtitle(bamcheck)
-  ggsave(plot=bc.plot, filename=paste(sep=".", outplotbase, "pdf"), width=12, height=5)
+plot_baseline_diagnostics <- function(gcc_baseline) {
+  gcc_plot <- ggplot(data=melt(gcc_baseline, id.vars=c("read.cycle","base","baseline","values.below.baseline","values.above.baseline")), mapping=aes(x=read.cycle)) + facet_grid(facets=.~base, scales="fixed") + geom_path(mapping=aes(y=value, colour=variable)) + scale_y_continuous(limits=c(0,100)) + ylab("Base Content %") + xlab("Read Cycle") + ggtitle(bamcheck)
+  ggsave(plot=gcc_plot, filename=paste(sep=".", outplotbase, "pdf"), width=12, height=5)
 }
 
 
 ###############################################################################
-# "Melt" the data into long (instead of wide) format (filtering out count==0)
+# base_content_deviation calculates and returns summary numbers on 
+# bamcheck GCC (base content) section.
 ###############################################################################
-gcc.data.melt <- melt(gcc.data, id.vars="read.cycle", variable.name="base")
+base_content_deviation <- function(gcc_data, baseline_method="mean", runmed_k=25, outplotbase) {
 
+  #############################################################################
+  # "Melt" the data into long (instead of wide) format (filtering out count==0)
+  #############################################################################
+  gcc_data.melt <- melt(gcc_data, id.vars="read.cycle", variable.name="base")
 
-###############################################################################
-# Calculate A, C, G, T base content percentages over and under baseline
-###############################################################################
-gcc.data.baseline <- ddply(.data=gcc.data.melt, .variables=c("base"), .fun=bc.baseline.delta, baseline.method=baseline.method, runmed.k=runmed.k)
-gcc.data.peaks <- ddply(.data=gcc.data.baseline, .variables=c("base"), .fun=bc.peaks)
-gcc.data.peaks.melt <- melt(gcc.data.peaks)
+  #############################################################################
+  # Calculate A, C, G, T base content percentages over and under baseline
+  #############################################################################
+  gcc_baseline <- ddply(.data=gcc_data.melt, .variables=c("base"), .fun=subtract_baseline, baseline_method=baseline_method, runmed_k=runmed_k)
+  gcc_data_peaks <- ddply(.data=gcc_baseline, .variables=c("base"), .fun=calculate_deviation)
+  gcc_data_peaks_melt <- melt(gcc_data_peaks)
 
-###############################################################################
-# Output bc.percents and percentages as bamcheck-style Summary Number (SN) entries
-###############################################################################
-outdata <- data.frame(section="SN", variable=paste(sep=".", gcc.data.peaks.melt$base, gcc.data.peaks.melt$variable), value=gcc.data.peaks.melt$value)
-write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+  ###############################################################################
+  # Optionally output plots
+  ###############################################################################
+  if (exists("outplotbase")) {
+    plot_baseline_diagnostics(gcc_baseline)
+  }
 
-
-###############################################################################
-# Optionally output plots
-###############################################################################
-if(exists("outplotbase")) {
-  plot.bc.baseline(gcc.data.baseline)
+  #############################################################################
+  # Output bc.percents and percentages as bamcheck-style Summary Number (SN) 
+  #############################################################################
+  outdata <- data.frame(section="SN", variable=paste(sep=".", gcc_data_peaks_melt$base, gcc_data_peaks_melt$variable), value=gcc_data_peaks_melt$value)
+#  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+  return(outdata)
 }
 
