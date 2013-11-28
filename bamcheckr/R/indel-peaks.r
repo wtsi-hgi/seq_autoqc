@@ -69,6 +69,37 @@
 ###############################################################################
 # indel_peaks subtracts a baseline and counts indels above and below baseline
 ###############################################################################
+indel_peaks <- function(bamcheck, baseline_method = "runmed", runmed_k = 25) {
+
+  ic_data <- bamcheck$data$IC
+ 
+  ###############################################################################
+  # Plot indel peaks diagnostics
+  ###############################################################################
+  # ggplot(data=data.frame(subtract_indel_peaks(peaky$readcycle, peaky$delcount, baseline_method="runmed")), mapping=aes(x=read_cycle)) + geom_line(mapping=aes(y=count), colour="black") + geom_line(mapping=aes(y=baseline), colour="red") + geom_line(mapping=aes(y=count.minus.baseline), colour="blue") 
+
+
+  ###############################################################################
+  # Calculate insertion and deletion counts and percentages 
+  ###############################################################################
+  fwd_insertion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$fwd.insertion.count, baseline_method=baseline_method, runmed_k=runmed_k)
+  rev_insertion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$rev.insertion.count, baseline_method=baseline_method, runmed_k=runmed_k)
+  fwd_deletion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$fwd.deletion.count, baseline_method=baseline_method, runmed_k=runmed_k)
+  rev_deletion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$rev.deletion.count, baseline_method=baseline_method, runmed_k=runmed_k)
+
+
+  ###############################################################################
+  # Output counts and percentages as bamcheck-style Summary Number (SN) entries
+  ###############################################################################
+  outdata <- data.frame(section="SN", variable=c("fwd percent insertions above baseline:", "fwd percent insertions below baseline:", "fwd percent deletions above baseline:", "fwd percent deletions below baseline:", "rev percent insertions above baseline:", "rev percent insertions below baseline:", "rev percent deletions above baseline:", "rev percent deletions below baseline:"), value=c(100.0*fwd_insertion_peaks$percent.above, 100.0*fwd_insertion_peaks$percent.below, 100.0*fwd_deletion_peaks$percent.above, 100.0*fwd_deletion_peaks$percent.below,100.0*rev_insertion_peaks$percent.above, 100.0*rev_insertion_peaks$percent.below, 100.0*rev_deletion_peaks$percent.above, 100.0*rev_deletion_peaks$percent.below))
+  #  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+  return(outdata)
+}
+
+
+###############################################################################
+# subtract_indel_peaks subtracts a baseline and counts indels above and below baseline
+###############################################################################
 subtract_indel_peaks <- function(read_cycle, count, baseline_method="runmed", runmed_k=25) {
   if(baseline_method=="runmed") {
     # baseline is a running median across a sliding window of runmed_k reads
@@ -105,27 +136,3 @@ subtract_indel_peaks <- function(read_cycle, count, baseline_method="runmed", ru
 
 
 
-indel_peaks <- function(ic_data) {
-
-  ###############################################################################
-  # Plot indel peaks diagnostics
-  ###############################################################################
-  # ggplot(data=data.frame(subtract_indel_peaks(peaky$readcycle, peaky$delcount, baseline_method="runmed")), mapping=aes(x=read_cycle)) + geom_line(mapping=aes(y=count), colour="black") + geom_line(mapping=aes(y=baseline), colour="red") + geom_line(mapping=aes(y=count.minus.baseline), colour="blue") 
-
-
-  ###############################################################################
-  # Calculate insertion and deletion counts and percentages 
-  ###############################################################################
-  fwd_insertion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$fwd.insertion.count, baseline_method=baseline_method, runmed_k=runmed_k)
-  rev_insertion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$rev.insertion.count, baseline_method=baseline_method, runmed_k=runmed_k)
-  fwd_deletion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$fwd.deletion.count, baseline_method=baseline_method, runmed_k=runmed_k)
-  rev_deletion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$rev.deletion.count, baseline_method=baseline_method, runmed_k=runmed_k)
-
-
-  ###############################################################################
-  # Output counts and percentages as bamcheck-style Summary Number (SN) entries
-  ###############################################################################
-  outdata <- data.frame(section="SN", variable=c("fwd percent insertions above baseline:", "fwd percent insertions below baseline:", "fwd percent deletions above baseline:", "fwd percent deletions below baseline:", "rev percent insertions above baseline:", "rev percent insertions below baseline:", "rev percent deletions above baseline:", "rev percent deletions below baseline:"), value=c(100.0*fwd_insertion_peaks$percent.above, 100.0*fwd_insertion_peaks$percent.below, 100.0*fwd_deletion_peaks$percent.above, 100.0*fwd_deletion_peaks$percent.below,100.0*rev_insertion_peaks$percent.above, 100.0*rev_insertion_peaks$percent.below, 100.0*rev_deletion_peaks$percent.above, 100.0*rev_deletion_peaks$percent.below))
-  #  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
-  return(outdata)
-}
