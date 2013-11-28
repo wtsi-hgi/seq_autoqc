@@ -56,6 +56,42 @@
 
 
 ###############################################################################
+# base_content_deviation calculates and returns summary numbers on 
+# bamcheck GCC (base content) section.
+###############################################################################
+base_content_deviation <- function(bamcheck, baseline_method="mean", runmed_k=25, outplotbase="") {
+  gcc_data <- bamcheck$data$GCC
+
+  #############################################################################
+  # "Melt" the data into long (instead of wide) format (filtering out count==0)
+  #############################################################################
+  gcc_data_melt <- melt(gcc_data, id.vars="read.cycle", variable.name="base")
+
+  #############################################################################
+  # Calculate A, C, G, T base content percentages over and under baseline
+  #############################################################################
+  gcc_baseline <- ddply(.data=gcc_data_melt, .variables=c("base"), .fun=subtract_baseline, baseline_method=baseline_method, runmed_k=runmed_k)
+  gcc_data_peaks <- ddply(.data=gcc_baseline, .variables=c("base"), .fun=calculate_deviation)
+  gcc_data_peaks_melt <- melt(gcc_data_peaks)
+
+  ###############################################################################
+  # Optionally output plots
+  ###############################################################################
+  if (outplotbase != "") {
+    plot_baseline_diagnostics(gcc_baseline, outplotbase)
+  }
+
+  #############################################################################
+  # Output bc.percents and percentages as bamcheck-style Summary Number (SN) 
+  #############################################################################
+  outdata <- data.frame(section="SN", variable=paste(sep=".", gcc_data_peaks_melt$base, gcc_data_peaks_melt$variable), value=gcc_data_peaks_melt$value)
+#  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+  return(outdata)
+}
+
+
+
+###############################################################################
 # calc_baselines calculates baselines for given values
 ###############################################################################
 calc_baselines <- function(df, runmed_k) {
@@ -112,42 +148,9 @@ calculate_deviation <- function(df) {
 ###############################################################################
 # Plot baseline diagnostics
 ###############################################################################
-plot_baseline_diagnostics <- function(gcc_baseline) {
+plot_baseline_diagnostics <- function(gcc_baseline, outplotbase) {
   gcc_plot <- ggplot(data=melt(gcc_baseline, id.vars=c("read.cycle","base","baseline","values.below.baseline","values.above.baseline")), mapping=aes(x=read.cycle)) + facet_grid(facets=.~base, scales="fixed") + geom_path(mapping=aes(y=value, colour=variable)) + scale_y_continuous(limits=c(0,100)) + ylab("Base Content %") + xlab("Read Cycle") + ggtitle(bamcheck)
   ggsave(plot=gcc_plot, filename=paste(sep=".", outplotbase, "pdf"), width=12, height=5)
 }
 
-
-###############################################################################
-# base_content_deviation calculates and returns summary numbers on 
-# bamcheck GCC (base content) section.
-###############################################################################
-base_content_deviation <- function(gcc_data, baseline_method="mean", runmed_k=25, outplotbase) {
-
-  #############################################################################
-  # "Melt" the data into long (instead of wide) format (filtering out count==0)
-  #############################################################################
-  gcc_data.melt <- melt(gcc_data, id.vars="read.cycle", variable.name="base")
-
-  #############################################################################
-  # Calculate A, C, G, T base content percentages over and under baseline
-  #############################################################################
-  gcc_baseline <- ddply(.data=gcc_data.melt, .variables=c("base"), .fun=subtract_baseline, baseline_method=baseline_method, runmed_k=runmed_k)
-  gcc_data_peaks <- ddply(.data=gcc_baseline, .variables=c("base"), .fun=calculate_deviation)
-  gcc_data_peaks_melt <- melt(gcc_data_peaks)
-
-  ###############################################################################
-  # Optionally output plots
-  ###############################################################################
-  if (exists("outplotbase")) {
-    plot_baseline_diagnostics(gcc_baseline)
-  }
-
-  #############################################################################
-  # Output bc.percents and percentages as bamcheck-style Summary Number (SN) 
-  #############################################################################
-  outdata <- data.frame(section="SN", variable=paste(sep=".", gcc_data_peaks_melt$base, gcc_data_peaks_melt$variable), value=gcc_data_peaks_melt$value)
-#  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
-  return(outdata)
-}
 
