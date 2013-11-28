@@ -88,11 +88,25 @@ indel_peaks <- function(bamcheck, baseline_method = "runmed", runmed_k = 25) {
   rev_deletion_peaks <- subtract_indel_peaks(read_cycle=ic_data$read.cycle, count=ic_data$rev.deletion.count, baseline_method=baseline_method, runmed_k=runmed_k)
 
 
-  ###############################################################################
-  # Output counts and percentages as bamcheck-style Summary Number (SN) entries
-  ###############################################################################
-  outdata <- data.frame(section="SN", variable=c("fwd percent insertions above baseline:", "fwd percent insertions below baseline:", "fwd percent deletions above baseline:", "fwd percent deletions below baseline:", "rev percent insertions above baseline:", "rev percent insertions below baseline:", "rev percent deletions above baseline:", "rev percent deletions below baseline:"), value=c(100.0*fwd_insertion_peaks$percent.above, 100.0*fwd_insertion_peaks$percent.below, 100.0*fwd_deletion_peaks$percent.above, 100.0*fwd_deletion_peaks$percent.below,100.0*rev_insertion_peaks$percent.above, 100.0*rev_insertion_peaks$percent.below, 100.0*rev_deletion_peaks$percent.above, 100.0*rev_deletion_peaks$percent.below))
-  #  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+  outdata <- data.frame(variable = c(
+  	     		  "fwd.percent.insertions.above.baseline:", 
+ 	     		  "fwd.percent.insertions.below.baseline:", 
+			  "fwd.percent.deletions.above.baseline:", 
+			  "fwd.percent.deletions.below.baseline:", 
+			  "rev.percent.insertions.above.baseline:", 
+			  "rev.percent.insertions.below.baseline:", 
+			  "rev.percent.deletions.above.baseline:", 
+			  "rev.percent.deletions.below.baseline:"), 
+			value = c(
+			  100.0*fwd_insertion_peaks$percent.above, 
+			  100.0*fwd_insertion_peaks$percent.below, 
+			  100.0*fwd_deletion_peaks$percent.above, 
+			  100.0*fwd_deletion_peaks$percent.below,
+			  100.0*rev_insertion_peaks$percent.above, 
+			  100.0*rev_insertion_peaks$percent.below, 
+			  100.0*rev_deletion_peaks$percent.above, 
+			  100.0*rev_deletion_peaks$percent.below))
+
   return(outdata)
 }
 

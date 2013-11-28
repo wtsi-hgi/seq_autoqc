@@ -82,11 +82,8 @@ quality_dropoff <- function(bamcheck, runmed_k = 25, ignore_edge_cycles = 3,
       plot_quality_stats(rev_quality_stats, "reverse")
   }
 
-  ###############################################################################
-  # Output contiguous.high.iqr as bamcheck-style Summary Number (SN) entry
-  ###############################################################################
-  outdata <- data.frame(section = "SN", melt(contiguous_quality_stats))
-#  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+  outdata <- data.frame(melt(contiguous_quality_stats))
+
   return(outdata)
 }
 

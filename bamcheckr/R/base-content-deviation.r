@@ -81,11 +81,8 @@ base_content_deviation <- function(bamcheck, baseline_method="mean", runmed_k=25
     plot_baseline_diagnostics(gcc_baseline, outplotbase)
   }
 
-  #############################################################################
-  # Output bc.percents and percentages as bamcheck-style Summary Number (SN) 
-  #############################################################################
-  outdata <- data.frame(section="SN", variable=paste(sep=".", gcc_data_peaks_melt$base, gcc_data_peaks_melt$variable), value=gcc_data_peaks_melt$value)
-#  write.table(file=outfile, x=outdata, quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t", append=TRUE)
+  outdata <- data.frame(variable=paste(sep=".", gcc_data_peaks_melt$base, gcc_data_peaks_melt$variable), value=gcc_data_peaks_melt$value)
+
   return(outdata)
 }
 
