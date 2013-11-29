@@ -47,7 +47,7 @@
 quality_columns <- paste("Q", seq(from = 0, to = 93), sep = "")
 
 bamcheck_section_columns <- list(
-  SN  = c("key", "value"),
+  SN  = c("variable", "value"),
   COV = c("range.spec", "range.min", "count"),
   FFQ = c("read.cycle", quality_columns),
   GCC = c("read.cycle", "A.percent", "C.percent", "G.percent", "T.percent"),
@@ -85,7 +85,7 @@ read_bamcheck <- function(bamcheck_file) {
 # both are vectors of lines from that section
 ###############################################################################
 read_bamcheck_lines <- function(bamcheck_file) {
-  bamcheck_lines <- readLines("6658_7#3.bamcheck")
+  bamcheck_lines <- readLines(bamcheck_file)
 
   is_comment_line <- grepl(x=bamcheck_lines, pattern='^[#]')
 
