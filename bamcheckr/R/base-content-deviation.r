@@ -81,7 +81,10 @@ base_content_deviation <- function(bamcheck, baseline_method="mean", runmed_k=25
     plot_baseline_diagnostics(gcc_baseline, outplotbase)
   }
 
-  outdata <- data.frame(variable=paste(sep=".", gcc_data_peaks_melt$base, gcc_data_peaks_melt$variable), value=gcc_data_peaks_melt$value)
+  outdata <- data.frame(variable=paste(sep="", 
+  	     			       paste(sep=".", gcc_data_peaks_melt$base, 
+				             gcc_data_peaks_melt$variable),
+				       ":"), value=gcc_data_peaks_melt$value)
 
   return(outdata)
 }
