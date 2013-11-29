@@ -1,1 +1,1 @@
-import(Hmisc, plyr, reshape2, ggplot2, caTools)
+import(Hmisc, plyr, reshape2, ggplot2, caTools, stringr)
