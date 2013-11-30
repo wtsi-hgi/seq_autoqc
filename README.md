@@ -4,16 +4,28 @@ seq_autoqc
 These routines run on data produced by bamcheck and are used as part of the autoqc process in HGI pipelines.
 
 
-indel_vs_readcycle_peaks
-------------------------
-Issues that affect a particular read-cycle (such as temporary bubbles) tend to cause large spikes in the indel vs readcycle plots. This script detects those spikes.
+bamcheckr
+---------
+An R package for reading and writing bamcheck data, and for calculating indel_peaks, 
+quality_dropoff, and base_content_deviation.
 
+bamcheck_augment_summary.R 
+--------------------------
+An R script that takes bamcheck as input and produces augmented bamcheck as output, in which 
+additional Summary Number (SN) entries are added for indel peaks, quality dropoff, and base 
+content deviation. 
 
-quality_dropoff
----------------
-Sometimes the quality of a run drops off early. This can be due to increasing loss of phasing as bases are incorporated or skipped when conditions are not ideal (e.g. because of bad reagents, fluidics issues, temperature, etc).
-
+You can obtain help by running: 
 ```bash
-R --vanilla --slave --args bamcheck="${bamcheck_filename}" iqr.threshold=10 fail.thresh.ccc=12 warn.thresh.ccc=5 outdir="${outdir}" < pass.fail.warn.iqr.test.R
+Rscript bamcheck_augment_summary.R --help
 ```
  
+Usage with defaults is as simple as:
+```bash
+Rscript bamcheck_augment_summary.R input.bamcheck output.bamcheck
+```
+
+These defaults are equivalent to:
+```bash
+Rscript bamcheck_augment_summary.R --indel-runmed-k=25 --indel-baseline-method=runmed --base-content-runmed-k=25 --base-content-baseline-method=mean --quality-dropoff-runmed-k=25 --quality-dropoff-ignore-edge-cycles=3 --quality-dropoff-high-iqr-threshold=1 input.bamcheck output.bamcheck
+```
