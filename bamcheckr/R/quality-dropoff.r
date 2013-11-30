@@ -93,12 +93,12 @@ quality_dropoff <- function(bamcheck, runmed_k = 25, ignore_edge_cycles = 3,
 # Calculate quantiles, IQR, and mean for a read cycle
 ##########################################################################
 calculate_readcycle_stats <- function(read.df, var) {
-  quantiles <- wtd.quantile(x=read.df[,var], weights=read.df$count, probs=c(0.25, 0.5, 0.75));
+  quantiles <- Hmisc::wtd.quantile(x=read.df[,var], weights=read.df$count, probs=c(0.25, 0.5, 0.75));
   q1 <- quantiles[1]
   median <- quantiles[2]
   q3 <- quantiles[3]
   iqr <- q3 - q1
-  mean <- wtd.mean(x=read.df[,var], weights=read.df$count)
+  mean <- Hmisc::wtd.mean(x=read.df[,var], weights=read.df$count)
   retdf <- data.frame(q1, median, q3, iqr, mean)
   names(retdf) <- paste(sep=".", var, c("q1","median","q3","iqr","mean"))
   return(retdf)
