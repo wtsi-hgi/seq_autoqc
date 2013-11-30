@@ -7,6 +7,6 @@ Authors@R: c(
            email = "jcrandall@alum.mit.edu", 
 	   role = c("aut", "cre")))
 Depends: R (>= 3.0.0)
-Imports: Hmisc, plyr, reshape2, ggplot2, caTools
+Imports: Hmisc, plyr, reshape2, ggplot2, caTools, stringr
 License: "GPL-3"
 LazyData: true
