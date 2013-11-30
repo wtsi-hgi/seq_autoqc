@@ -1,8 +1,9 @@
 seq_autoqc
 ==========
 
-These routines run on data produced by bamcheck and are used as part of the autoqc process in HGI pipelines.
+These routines run on data produced by bamcheck and are used as part of the autoqc process in HGI pipelines.  
 
+bamcheck files used to be produced by the `bamcheck` program but are now incorporated into `samtools` and produced by the `samtools stats` command (as of the 1.0 release candidates beginning with "0.2.0-rc1").  
 
 bamcheckr
 ---------
