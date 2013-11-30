@@ -64,9 +64,7 @@ option_list <- list(
   	      type = "character", default ="", metavar = "path",
   	      help = "Base path to output plots (default: no plots)"))
 
-usage <- paste(sep="\n",
-               "Usage: %prog [options] <bamcheck_input> <bamcheck_output>",
-	       "Use opiton [-h|--help] to list additional options.")
+usage <- "Usage: Rscript %prog [-h|--help] [options] <bamcheck_input> <bamcheck_output>"
 
 options_args <- parse_args(OptionParser(option_list = option_list, usage = usage), 
 	                   positional_arguments = TRUE)
