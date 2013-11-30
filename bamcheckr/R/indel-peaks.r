@@ -69,14 +69,16 @@
 ###############################################################################
 # indel_peaks subtracts a baseline and counts indels above and below baseline
 ###############################################################################
-indel_peaks <- function(bamcheck, baseline_method = "runmed", runmed_k = 25) {
+indel_peaks <- function(bamcheck, baseline_method = "runmed", runmed_k = 25, outplotbase = "") {
 
   ic_data <- bamcheck$data$IC
  
   ###############################################################################
   # Plot indel peaks diagnostics
   ###############################################################################
-  # ggplot(data=data.frame(subtract_indel_peaks(peaky$readcycle, peaky$delcount, baseline_method="runmed")), mapping=aes(x=read_cycle)) + geom_line(mapping=aes(y=count), colour="black") + geom_line(mapping=aes(y=baseline), colour="red") + geom_line(mapping=aes(y=count.minus.baseline), colour="blue") 
+  if (outplotbase != "") {
+  #  ggplot(data=data.frame(subtract_indel_peaks(peaky$readcycle, peaky$delcount, baseline_method="runmed")), mapping=aes(x=read_cycle)) + geom_line(mapping=aes(y=count), colour="black") + geom_line(mapping=aes(y=baseline), colour="red") + geom_line(mapping=aes(y=count.minus.baseline), colour="blue") 
+  }
 
 
   ###############################################################################
