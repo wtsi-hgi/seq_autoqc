@@ -66,11 +66,23 @@ option_list <- list(
 
 usage <- "Usage: Rscript %prog [-h|--help] [options] <bamcheck_input> <bamcheck_output>"
 
-options_args <- parse_args(OptionParser(option_list = option_list, usage = usage), 
-	                   positional_arguments = TRUE)
+op <- OptionParser(option_list = option_list, usage = usage)
+options_args <- parse_args(op, positional_arguments = TRUE)
 
 if(length(options_args$args) != 2) {
-  stop(paste("Must specify exactly two arguments", usage))
+  possible_opts = options_args$args[substr(options_args$args, 1, 1) == "-"]
+  if (length(possible_opts) > 0) {
+    if (length(possible_opts) == 1) { 
+      cat(sprintf("Unrecognized option: %s\n", possible_opts[1]))
+    } else {
+      cat(sep = "\n", "Unrecognized options:", paste0("  ", possible_opts))
+    }
+  } else {
+    cat(sprintf("Must specify exactly two arguments (had %d)\n", length(options_args$args)))
+    cat("Arguments were:\n ", paste0(collapse = "\n  ", options_args$args), "\n")
+  }
+  print_help(op)
+  stop()
 }
 
 bamcheck_input <- options_args$args[1]
