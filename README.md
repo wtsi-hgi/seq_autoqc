@@ -10,6 +10,12 @@ bamcheckr
 An R package for reading and writing bamcheck data, and for calculating indel_peaks, 
 quality_dropoff, and base_content_deviation.
 
+This package can be installed directly from git using `devtools`
+```R
+library(devtools)
+install_github("wtsi-hgi/seq_autoqc", subdir="bamcheckr")
+```
+
 bamcheck_augment_summary.R 
 --------------------------
 An R script that takes bamcheck as input and produces augmented bamcheck as output, in which 
