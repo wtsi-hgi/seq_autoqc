@@ -72,7 +72,7 @@ base_content_deviation <- function(bamcheck, baseline_method="mean", runmed_k=25
   #############################################################################
   gcc_baseline <- ddply(.data=gcc_data_melt, .variables=c("base"), .fun=subtract_baseline, baseline_method=baseline_method, runmed_k=runmed_k)
   gcc_data_peaks <- ddply(.data=gcc_baseline, .variables=c("base"), .fun=calculate_deviation)
-  gcc_data_peaks_melt <- melt(gcc_data_peaks)
+  gcc_data_peaks_melt <- melt(gcc_data_peaks, id.vars=c("base"))
 
   ###############################################################################
   # Optionally output plots

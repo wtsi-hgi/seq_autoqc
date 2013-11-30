@@ -82,7 +82,7 @@ quality_dropoff <- function(bamcheck, runmed_k = 25, ignore_edge_cycles = 3,
       plot_quality_stats(rev_quality_stats, "reverse")
   }
 
-  outdata <- data.frame(melt(contiguous_quality_stats))
+  outdata <- data.frame(melt(contiguous_quality_stats, measure.vars=names(contiguous_quality_stats)))
   outdata$variable <- paste(outdata$variable, ":", sep="")
 
   return(outdata)
