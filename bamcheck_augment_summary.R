@@ -23,6 +23,7 @@
 
 library(optparse)
 
+options(scipen=9)
 indel_baseline_methods <- c("runmed", "runmed_quadratic", "quadratic", "runmin_quadratic")
 base_content_baseline_methods <- c("mean", "median", "runmed")
 
