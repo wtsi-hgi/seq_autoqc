@@ -1,5 +1,5 @@
 ###############################################################################
-# bamcheck_indel_peaks.R
+# indel-peaks.r
 ###############################################################################
 # 
 # Copyright (c) 2012 Genome Research Ltd.
@@ -145,8 +145,8 @@ subtract_indel_peaks <- function(read_cycle, count, baseline_method="runmed", ru
   count_above_baseline <- sum(count_minus_baseline[count_minus_baseline>0])
   count_below_baseline <- abs(sum(count_minus_baseline[count_minus_baseline<0]))
   count_total <- sum(count)
-  percent_above_baseline <- count_above_baseline / count_total
-  percent_below_baseline <- count_below_baseline / count_total
+  percent_above_baseline <- ifelse(count_total>0, count_above_baseline / count_total, 0)
+  percent_below_baseline <- ifelse(count_total>0, count_below_baseline / count_total, 0)
   return(list(above.count=count_above_baseline, below.count=count_below_baseline, total.count=count_total, percent.above=percent_above_baseline, percent.below=percent_below_baseline, read.cycle=read_cycle, count=count, baseline=baseline, count.minus.baseline=count_minus_baseline))
 }
 
