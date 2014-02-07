@@ -176,6 +176,6 @@ calculate_contiguous_quality_stats <- function(quality_stats, high_iqr_threshold
 ##########################################################################
 plot_quality_stats <- function(quality_stats_df, direction) {
   qs_plot <- ggplot(data=melt(quality_stats_df, id.vars=c("read.cycle","quality.q1","quality.q3","quality.iqr"), measure.vars=c("quality.median","quality.mean","quality.mean.runmed")), mapping=aes(x=read.cycle)) + geom_path(mapping=aes(y=value, colour=variable)) + geom_ribbon(mapping=aes(ymin=quality.q1, ymax=quality.q3), alpha=0.25) + scale_colour_brewer(palette="Dark2")
-  ggsave(plot=qs.plot, filename=paste(sep=".", outplotbase, direction, "pdf"))
+  ggsave(plot=qs_plot, filename=paste(sep=".", outplotbase, direction, "pdf"))
 }
 
