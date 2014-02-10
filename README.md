@@ -13,7 +13,7 @@ quality_dropoff, and base_content_deviation.
 This package can be installed directly from git using `devtools`
 ```R
 library(devtools)
-install_github("samstudio8/seq_autoqc", subdir="bamcheckr")
+install_github("wtsi-hgi/seq_autoqc", subdir="bamcheckr")
 ```
 
 bamcheck_augment_summary.R 
