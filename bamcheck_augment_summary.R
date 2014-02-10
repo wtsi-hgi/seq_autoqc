@@ -2,9 +2,10 @@
 # bamcheck_augment_summary.R
 ###############################################################################
 # 
-# Copyright (c) 2012 Genome Research Ltd.
+# Copyright (c) 2012, 2014 Genome Research Ltd.
 # 
 # Author: Joshua Randall <joshua.randall@sanger.ac.uk>
+#         Sam Nicholls <sn8@sanger.ac.uk>
 # 
 # This program is free software: you can redistribute it and/or modify it under 
 # the terms of the GNU General Public License as published by the Free Software 
@@ -21,6 +22,7 @@
 # 
 ###############################################################################
 
+library(methods)
 library(optparse)
 
 options(scipen=9)

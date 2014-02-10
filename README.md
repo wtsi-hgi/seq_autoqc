@@ -36,8 +36,3 @@ These defaults are equivalent to:
 ```bash
 Rscript bamcheck_augment_summary.R --indel-runmed-k=25 --indel-baseline-method=runmed --base-content-runmed-k=25 --base-content-baseline-method=mean --quality-dropoff-runmed-k=25 --quality-dropoff-ignore-edge-cycles=3 --quality-dropoff-high-iqr-threshold=1 input.bamcheck output.bamcheck
 ```
-
-If you encounter trouble (`could not find function "loadMethod"`) attempting use with RScript you could try the somewhat archaic `R CMD BATCH` as follows:
-```bash
-R CMD BATCH '--args input.bamcheck output.bamcheck --plot-base-path=plots/bamplot' bamcheck_augment_summary.R
-```
