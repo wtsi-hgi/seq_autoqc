@@ -65,7 +65,7 @@ base_content_deviation <- function(bamcheck, baseline_method="mean", runmed_k=25
   #############################################################################
   # "Melt" the data into long (instead of wide) format (filtering out count==0)
   #############################################################################
-  gcc_data_melt <- melt(gcc_data, id.vars="read.cycle", variable.name="base")
+  gcc_data_melt <- melt(gcc_data[,c("read.cycle", "A.percent", "C.percent", "G.percent", "T.percent")], id.vars="read.cycle", variable.name="base")
 
   #############################################################################
   # Calculate A, C, G, T base content percentages over and under baseline

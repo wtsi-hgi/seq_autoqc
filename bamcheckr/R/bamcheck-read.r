@@ -50,7 +50,7 @@ bamcheck_section_columns <- list(
   SN  = c("variable", "value"),
   COV = c("range.spec", "range.min", "count"),
   FFQ = c("read.cycle", quality_columns),
-  GCC = c("read.cycle", "A.percent", "C.percent", "G.percent", "T.percent"),
+  GCC = c("read.cycle", "A.percent", "C.percent", "G.percent", "T.percent", "N.percent", "O.percent"),
   GCD = c("GC.percent", "unique.sequence.percentiles", "depth.percentile.10th", "depth.percentile.25th", "depth.percentile.50th", "depth.percentile.75th", "depth.percentile.90th"),
   GCF = c("GC.content", "count"),
   GCL = c("GC.content", "count"),
