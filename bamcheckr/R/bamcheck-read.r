@@ -47,6 +47,7 @@
 quality_columns <- paste("Q", seq(from = 0, to = 93), sep = "")
 
 bamcheck_section_columns <- list(
+  CHK = c("read.names", "sequences", "qualities"),
   SN  = c("variable", "value"),
   COV = c("range.spec", "range.min", "count"),
   FFQ = c("read.cycle", quality_columns),
