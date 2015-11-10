@@ -153,6 +153,10 @@ extract_comments_by_section <- function(bamcheck_comment_lines) {
 # section, containing a data frame for the data in that section
 ###############################################################################
 extract_data_by_section <- function(bamcheck_data_lines) {
+  # remove comments
+  strip <- function(x) { y<-regexec("\t#",x, fixed=TRUE)[[1]][1]; ifelse(y==-1, x, substr(x,0,y-1)) }
+  bamcheck_data_lines <- lapply(bamcheck_data_lines, strip);
+
   # extract vector of all data sections that occur in the data
   data_section_labels <- str_extract(string = bamcheck_data_lines, pattern = "^([A-Z]+)")
   data_sections <- levels(as.factor(data_section_labels))
